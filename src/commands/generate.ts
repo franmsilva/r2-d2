@@ -1,13 +1,17 @@
 import path from 'path';
 import chalk from 'chalk';
 import { Arguments, CommandBuilder } from 'yargs';
-import { ensureDirSync, outputFileSync, readFileSync } from 'fs-extra';
+import {
+  ensureDirSync,
+  outputFileSync,
+  pathExistsSync,
+  readFileSync,
+} from 'fs-extra';
 
 import { EFileTypes } from '../types/enums';
 
 type Options = {
   componentPath: string;
-  optional?: boolean;
 };
 
 export const mapFileTypeToExtension: Record<EFileTypes, string> = {
@@ -18,31 +22,16 @@ export const mapFileTypeToExtension: Record<EFileTypes, string> = {
   [EFileTypes.Test]: 'test.tsx',
 };
 
-export const command = 'generate <path>';
+export const command = 'generate <componentPath>';
 export const description = 'Generate components with all of the required files';
 
 export const builder: CommandBuilder<Options, Options> = (yargs) =>
-  yargs
-    .alias('g', 'generate')
-    .options({
-      o: {
-        alias: 'optional',
-        default: false,
-        description: 'Include optional files',
-        type: 'boolean',
-      },
-      n: {
-        alias: 'name',
-        description: 'Component name',
-        type: 'string',
-      },
-    })
-    .positional('componentPath', {
-      demandOption: true,
-      description: 'Path to component from present directory',
-      normalize: true,
-      type: 'string',
-    });
+  yargs.alias('g', 'generate').positional('componentPath', {
+    demandOption: true,
+    description: 'Path to component from present directory',
+    normalize: true,
+    type: 'string',
+  });
 
 export const handler = (argv: Arguments<Options>): void => {
   const { componentPath } = argv;
@@ -51,11 +40,13 @@ export const handler = (argv: Arguments<Options>): void => {
   const componentName = pathArr[pathArr.length - 1];
 
   try {
+    console.log(chalk.blue('🔨 Initiating component generator...\n'));
+
     ensureDirSync(componentPath);
 
     Object.values(EFileTypes).forEach((fileType) => {
       const buffer = readFileSync(
-        path.join(__dirname, '..', 'template', `${fileType}.tpl`)
+        path.join(__dirname, '..', 'templates', `${fileType}.tpl`)
       );
       const template = buffer
         .toString()
@@ -65,11 +56,23 @@ export const handler = (argv: Arguments<Options>): void => {
           ? `${componentPath}/${fileType}.ts`
           : `${componentPath}/${componentName}.${mapFileTypeToExtension[fileType]}`;
 
-      // TODO: If it already exists, do not override!
-      outputFileSync(filePath, template);
+      if (pathExistsSync(filePath)) {
+        console.log(
+          chalk.yellow(`⏭ File of type ${fileType} already exists. Skipped`)
+        );
+      } else {
+        outputFileSync(filePath, template);
+        console.log(
+          chalk.green(
+            `✔ File of type ${chalk.greenBright.italic.bold(
+              fileType
+            )} created: ${chalk.underline.hex('#7a2bab')(filePath)}`
+          )
+        );
+      }
     });
 
-    console.log(chalk.green('Component created!'));
+    console.log(chalk.blue('\n 🚀 Component directory created!'));
   } catch (err) {
     console.log(
       chalk.redBright('Failed to created component due to the following error:')
