@@ -7,8 +7,7 @@
     "r2": "./build"
   },
   "scripts": {
-    "build": "npx tsc",
-    "build:watch": "npx tsc --watch"
+    "build": "zx ./scripts/build.mjs"
   },
   "keywords": [],
   "author": "",
